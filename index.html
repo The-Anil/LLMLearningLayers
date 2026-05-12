@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Engineering — Layer Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080d1a;
+      --border-base: rgba(255,255,255,0.07);
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: rgba(255,255,255,0.28);
+      --font-display: 'Barlow Condensed', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 90% 55% at 50% -5%, rgba(59,130,246,0.09) 0%, transparent 65%),
+        radial-gradient(ellipse 55% 45% at 85% 105%, rgba(168,85,247,0.06) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────────── */
+    .header {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border-base);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(120deg, #60a5fa 0%, #a78bfa 52%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.04em;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .header-hint {
+      margin-left: auto;
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      padding: 4px 12px;
+      white-space: nowrap;
+    }
+
+    /* ── MAIN LAYOUT ────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── LEFT SIDEBAR ───────────────────────────────── */
+    .sidebar {
+      width: 340px;
+      flex-shrink: 0;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border-base);
+    }
+
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.09); border-radius: 2px; }
+
+    .stack-hint {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 2px;
+    }
+
+    .stack-hint-bars { display: flex; flex-direction: column; gap: 2px; }
+
+    .stack-hint-bar { width: 14px; height: 3px; border-radius: 1px; opacity: 0.55; }
+
+    .stack-hint-text { font-size: 10px; color: rgba(255,255,255,0.18); }
+
+    /* ── LAYER CARD ─────────────────────────────────── */
+    .layer-card {
+      border-radius: 13px;
+      padding: 13px 15px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--lc-border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .layer-card:hover {
+      background: var(--lc-bg);
+      transform: translateX(2px);
+    }
+
+    .layer-card.active {
+      background: var(--lc-bg);
+      border-color: var(--lc-active-border);
+    }
+
+    .layer-card.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--lc-color);
+      border-radius: 3px 0 0 3px;
+    }
+
+    .card-inner { display: flex; align-items: flex-start; gap: 10px; }
+
+    .card-num {
+      width: 31px; height: 31px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px; font-weight: 700;
+      transition: all 0.25s;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.28);
+    }
+
+    .layer-card.active .card-num {
+      background: var(--lc-color);
+      color: #080d1a;
+      box-shadow: 0 0 0 3px var(--lc-glow), 0 0 12px var(--lc-glow);
+    }
+
+    .card-body { flex: 1; min-width: 0; }
+
+    .card-name {
+      font-family: var(--font-body);
+      font-size: 13px; font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+      transition: color 0.2s;
+    }
+
+    .layer-card.active .card-name { color: #f1f5f9; }
+
+    .card-tagline {
+      font-size: 11px;
+      color: rgba(255,255,255,0.28);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .card-metrics { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+
+    .metric-row { display: flex; align-items: center; gap: 8px; }
+
+    .metric-label { font-size: 10px; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+
+    .bar-group { display: flex; gap: 3px; }
+
+    .bar-seg {
+      width: 16px; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.08);
+      transition: background 0.3s;
+    }
+
+    .bar-seg.filled { background: var(--lc-color); }
+
+    .card-pay {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px; font-weight: 700;
+      color: var(--lc-color);
+      background: var(--lc-bg);
+      border: 1px solid var(--lc-border);
+      padding: 2px 10px; border-radius: 999px;
+    }
+
+    /* ── DETAIL PANEL ───────────────────────────────── */
+    .detail-panel-wrap { flex: 1; padding: 12px; overflow: hidden; min-width: 0; }
+
+    .detail-panel {
+      border-radius: 14px;
+      padding: 22px 24px;
+      height: 100%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      border: 1px solid var(--lc-border);
+      background: var(--lc-bg);
+      transition: border-color 0.25s, background 0.25s;
+    }
+
+    .detail-panel::-webkit-scrollbar { width: 3px; }
+    .detail-panel::-webkit-scrollbar-track { background: transparent; }
+    .detail-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.09); border-radius: 2px; }
+
+    .detail-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--lc-color);
+      margin-bottom: 4px;
+    }
+
+    .detail-name {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 800;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .detail-tagline {
+      font-size: 12px;
+      color: rgba(255,255,255,0.38);
+      line-height: 1.55;
+    }
+
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .roles-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .role-chip {
+      font-size: 11px; padding: 3px 11px; border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #cbd5e1;
+    }
+
+    .skills-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .skill-item {
+      display: flex; align-items: flex-start; gap: 9px;
+      padding: 8px 12px; border-radius: 9px;
+      background: rgba(0,0,0,0.22);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: border-color 0.2s;
+    }
+
+    .skill-item:hover { border-color: var(--lc-border-hover); }
+
+    .skill-diamond { color: var(--lc-color); font-size: 9px; margin-top: 3px; flex-shrink: 0; }
+
+    .skill-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+
+    .skill-note { font-size: 11px; color: rgba(255,255,255,0.36); margin-top: 1px; line-height: 1.4; }
+
+    .insight-block {
+      padding: 14px 16px; border-radius: 10px;
+      background: rgba(0,0,0,0.28);
+      border-left: 3px solid var(--lc-color);
+    }
+
+    .insight-text { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.78; }
+
+    .verdict-block {
+      padding: 12px 16px; border-radius: 10px;
+      background: var(--lc-bg);
+      border: 1px solid var(--lc-border);
+    }
+
+    .verdict-text { font-size: 12px; font-weight: 500; color: var(--lc-color); line-height: 1.65; }
+
+    .future-note {
+      font-size: 12px; color: rgba(255,255,255,0.42); line-height: 1.5;
+      font-style: italic; margin-bottom: 10px;
+    }
+
+    .detail-metrics { display: flex; gap: 18px; flex-wrap: wrap; }
+
+    .detail-metric-label { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+
+    /* ── MOBILE ACCORDION ───────────────────────────── */
+    .mobile-accordion { display: none; }
+
+    .accordion-card {
+      border-radius: 12px;
+      border: 1px solid var(--lc-border);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .accordion-card.active { border-color: var(--lc-active-border); }
+
+    .accordion-header {
+      padding: 13px 15px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.02);
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .accordion-card.active .accordion-header { background: var(--lc-bg); }
+
+    .accordion-chevron {
+      position: absolute; right: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255,255,255,0.25);
+      font-size: 11px;
+      transition: transform 0.25s, color 0.2s;
+      line-height: 1;
+    }
+
+    .accordion-card.active .accordion-chevron {
+      transform: translateY(-50%) rotate(180deg);
+      color: var(--lc-color);
+    }
+
+    .accordion-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .accordion-card.active .accordion-body { max-height: 4000px; }
+
+    .accordion-detail {
+      padding: 0 15px 16px;
+      background: var(--lc-bg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      html, body { overflow: auto; height: auto; }
+      #app { height: auto; overflow: visible; }
+      .main { overflow: visible; }
+      .sidebar { display: none; }
+      .detail-panel-wrap { display: none; }
+      .mobile-accordion { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+      .header { padding: 12px 16px; }
+      .header-hint { display: none; }
+      .header-title { font-size: 15px; }
+      .detail-name { font-size: 18px; }
+    }
+
+    @media (max-width: 480px) {
+      .detail-metrics { gap: 14px; }
+      .roles-wrap { gap: 5px; }
+      .skill-item { padding: 7px 10px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header class="header">
+    <div>
+      <div class="header-title">LLM Engineering — Layer Map</div>
+      <div class="header-sub">5 layers of the LLM stack · job market analysis · skill breakdown</div>
+    </div>
+    <div class="header-hint">← click any layer card to explore</div>
+  </header>
+
+  <div class="main">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="detail-panel-wrap">
+      <div class="detail-panel" id="detail-panel"></div>
+    </div>
+    <div class="mobile-accordion" id="mobile-accordion"></div>
+  </div>
+</div>
+
+<script>
+const LAYERS = [
+  {
+    id: "L1", num: 1,
+    name: "Application Layer",
+    tagline: "Build products on top of models",
+    demand: 5, pay: 4, future: 4,
+    futureNote: "Stable, but commoditising fast as tooling matures",
+    payRange: "₹18–45L",
+    roles: ["LLM Application Engineer","AI Product Engineer","Conversational AI Engineer","RAG Engineer"],
+    color: "#22c55e",
+    bg: "rgba(34,197,94,0.07)",
+    border: "rgba(34,197,94,0.18)",
+    borderHover: "rgba(34,197,94,0.35)",
+    activeBorder: "rgba(34,197,94,0.5)",
+    glow: "rgba(34,197,94,0.18)",
+    skills: [
+      { name: "LangChain / LangGraph", note: "Orchestration glue — most widely asked" },
+      { name: "RAG pipelines", note: "Chunking, embedding, retrieval, re-ranking" },
+      { name: "Vector DBs", note: "Pinecone, Weaviate, pgvector, Chroma" },
+      { name: "Prompt engineering", note: "System prompts, few-shot, CoT, structured output" },
+      { name: "LLM API integration", note: "OpenAI, Anthropic, Gemini, Bedrock" },
+      { name: "Tool use & function calling", note: "Structured outputs, Pydantic, Instructor" },
+      { name: "FastAPI / REST APIs", note: "Wrapping LLM logic as services" },
+    ],
+    insight: "This is where 60–70% of current LLM job postings live. Highest volume of roles, fastest to hire. The risk: tooling is abstracting this layer rapidly — what took 3 months to build in 2023 is now a weekend project. The floor is rising, which means the bar to stand out is rising too.",
+    verdict: "Your current home. Strong foundation — but you need to move up the stack to stay ahead.",
+  },
+  {
+    id: "L2", num: 2,
+    name: "Agentic & Orchestration Layer",
+    tagline: "Multi-step reasoning, tool use, autonomous workflows",
+    demand: 5, pay: 5, future: 5,
+    futureNote: "Fastest growing layer in 2025–2026 JDs. Not commoditising — getting harder.",
+    payRange: "₹28–60L",
+    roles: ["Agentic AI Engineer","AI Automation Engineer","Multi-agent Systems Engineer","AI Platform Engineer"],
+    color: "#3b82f6",
+    bg: "rgba(59,130,246,0.07)",
+    border: "rgba(59,130,246,0.18)",
+    borderHover: "rgba(59,130,246,0.35)",
+    activeBorder: "rgba(59,130,246,0.5)",
+    glow: "rgba(59,130,246,0.18)",
+    skills: [
+      { name: "Multi-agent orchestration", note: "Supervisor/worker, subgraphs, delegation" },
+      { name: "Model Context Protocol (MCP)", note: "Emerging standard — adoption exploding" },
+      { name: "Memory systems", note: "Short/long-term, mem0, episodic memory" },
+      { name: "Agent evaluation", note: "LLM-as-judge, RAGAS, trajectory eval" },
+      { name: "Tool ecosystems", note: "Browser, code exec, file system, APIs as tools" },
+      { name: "Human-in-the-loop patterns", note: "Approval gates, interrupts, oversight" },
+      { name: "Autogen / CrewAI / Google ADK", note: "Framework diversity is a JD differentiator" },
+    ],
+    insight: "This is the hottest layer right now and in the next 2–3 years. Agents that reliably do multi-step tasks across tools and systems is an unsolved problem at scale. Every enterprise is trying to build this. The skill gap is real — very few engineers can build production agentic systems that don't hallucinate themselves into a loop.",
+    verdict: "The layer you should be aggressively moving into. Your LangGraph knowledge is the entry ticket — deepen it here.",
+  },
+  {
+    id: "L3", num: 3,
+    name: "LLMOps / Production Layer",
+    tagline: "Deploy, monitor, evaluate, and scale LLM systems",
+    demand: 4, pay: 5, future: 5,
+    futureNote: "Every company that ships LLMs needs this. Scarcest talent pool.",
+    payRange: "₹30–65L",
+    roles: ["LLMOps Engineer","ML Platform Engineer","AI Infrastructure Engineer","AI Reliability Engineer"],
+    color: "#a855f7",
+    bg: "rgba(168,85,247,0.07)",
+    border: "rgba(168,85,247,0.18)",
+    borderHover: "rgba(168,85,247,0.35)",
+    activeBorder: "rgba(168,85,247,0.5)",
+    glow: "rgba(168,85,247,0.18)",
+    skills: [
+      { name: "LangSmith / Langfuse / Phoenix", note: "Tracing, eval pipelines, prompt versioning" },
+      { name: "MLflow / W&B", note: "Experiment tracking, model registry" },
+      { name: "vLLM / TGI / Ollama", note: "High-throughput model serving" },
+      { name: "Kubernetes + Docker for ML", note: "Containerised LLM workloads, GPU nodes" },
+      { name: "Evaluation frameworks", note: "RAGAS, deepeval, lm-eval-harness" },
+      { name: "CI/CD for ML", note: "Automated eval gates, model promotion" },
+      { name: "Observability stack", note: "Prometheus, Grafana, latency SLOs" },
+      { name: "Guardrails & safety", note: "Output validation, PII, hallucination mitigation" },
+    ],
+    insight: "Critically underrepresented in the talent market. Most engineers can build a demo — almost none can tell you the P99 latency of their LLM pipeline, why it drifted last Tuesday, or how to roll back a prompt version. Companies that are past the pilot stage are desperate for this. It pays significantly more than the application layer for exactly this reason.",
+    verdict: "The biggest gap between your current profile and senior-level pay. One solid LangSmith + evaluation project closes this fast.",
+  },
+  {
+    id: "L4", num: 4,
+    name: "Fine-tuning & Alignment Layer",
+    tagline: "Customise model behaviour on domain data",
+    demand: 3, pay: 5, future: 4,
+    futureNote: "Fewer roles but extremely high pay per role. Risk: GPT-4 class models keep raising the baseline.",
+    payRange: "₹35–80L",
+    roles: ["ML Research Engineer","Fine-tuning Engineer","Model Alignment Engineer","Applied Research Scientist"],
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.07)",
+    border: "rgba(245,158,11,0.18)",
+    borderHover: "rgba(245,158,11,0.35)",
+    activeBorder: "rgba(245,158,11,0.5)",
+    glow: "rgba(245,158,11,0.18)",
+    skills: [
+      { name: "SFT (Supervised Fine-tuning)", note: "TRL, Axolotl, dataset formatting" },
+      { name: "LoRA / QLoRA / PEFT", note: "Parameter-efficient adapters, rank selection" },
+      { name: "DPO / RLHF / ORPO", note: "Preference optimisation, reward modelling" },
+      { name: "Dataset curation", note: "Alpaca/ShareGPT formats, quality filtering, synthetic data" },
+      { name: "Quantisation (GGUF, AWQ, GPTQ)", note: "Inference cost reduction, edge deployment" },
+      { name: "Eval for fine-tuned models", note: "MT-Bench, lm-eval-harness, domain evals" },
+      { name: "Distributed training basics", note: "DeepSpeed, FSDP, multi-GPU setups" },
+    ],
+    insight: "High pay, lower volume. Most Hyderabad MNC roles at your level don't require this as primary — it's a strong differentiator when added to application or LLMOps skills. The future risk: frontier model quality is improving so fast that fine-tuning smaller models is becoming less compelling unless you have unique domain data. Fine-tuning + evaluation together is the durable skill pairing.",
+    verdict: "You're already on this path. Finish LoRA/DPO, then pair it with eval frameworks — that combination is what JDs reward.",
+  },
+  {
+    id: "L5", num: 5,
+    name: "Pretraining & Research Layer",
+    tagline: "Build and train foundation models from scratch",
+    demand: 1, pay: 5, future: 4,
+    futureNote: "Only a handful of companies do this. Extremely specialised, mostly research roles.",
+    payRange: "₹60–200L+",
+    roles: ["Research Scientist","Foundation Model Engineer","Pretraining Engineer","AI Research Lead"],
+    color: "#f43f5e",
+    bg: "rgba(244,63,94,0.07)",
+    border: "rgba(244,63,94,0.18)",
+    borderHover: "rgba(244,63,94,0.35)",
+    activeBorder: "rgba(244,63,94,0.5)",
+    glow: "rgba(244,63,94,0.18)",
+    skills: [
+      { name: "Transformer architecture (deep)", note: "Custom attention, positional encodings, MoE" },
+      { name: "Distributed pretraining", note: "Megatron-LM, DeepSpeed, FSDP, 1000+ GPU jobs" },
+      { name: "Tokeniser design", note: "BPE, SentencePiece, custom vocab" },
+      { name: "Data pipeline at scale", note: "Trillion-token datasets, dedup, quality filters" },
+      { name: "Scaling laws", note: "Chinchilla, compute-optimal training" },
+      { name: "CUDA / GPU programming", note: "Custom kernels, memory optimisation" },
+      { name: "Research paper fluency", note: "Reproducing and extending SOTA results" },
+    ],
+    insight: "Google, Anthropic, OpenAI, Mistral, and 5–6 others globally. That's essentially the entire market for this layer. Pay is extraordinary but competition is PhD-level. For Hyderabad MNC roles, this is not the target — it's good to understand architecturally, but pursuing it as a career path requires a very different trajectory (research publications, PhD, etc.).",
+    verdict: "Not your target for this job search. Understand the concepts for system design interviews, but don't invest learning time here.",
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────
+
+function cssVars(layer) {
+  return [
+    `--lc-color:${layer.color}`,
+    `--lc-bg:${layer.bg}`,
+    `--lc-border:${layer.border}`,
+    `--lc-border-hover:${layer.borderHover}`,
+    `--lc-active-border:${layer.activeBorder}`,
+    `--lc-glow:${layer.glow}`,
+  ].join(';');
+}
+
+function makeBars(value, max = 5) {
+  let html = '<div class="bar-group">';
+  for (let i = 0; i < max; i++) {
+    html += `<div class="bar-seg${i < value ? ' filled' : ''}"></div>`;
+  }
+  return html + '</div>';
+}
+
+function metricRows(layer) {
+  return [
+    { label: "Jobs in market", val: layer.demand },
+    { label: "Pay potential",  val: layer.pay },
+    { label: "Future proof",   val: layer.future },
+  ].map(m => `
+    <div class="metric-row">
+      <span class="metric-label">${m.label}</span>
+      ${makeBars(m.val)}
+    </div>
+  `).join('');
+}
+
+function detailContent(layer) {
+  const metrics = [
+    { label: "Jobs in market", val: layer.demand },
+    { label: "Pay potential",  val: layer.pay },
+    { label: "Future proof",   val: layer.future },
+  ];
+  return `
+    <div>
+      <div class="detail-eyebrow">Layer ${layer.num}</div>
+      <div class="detail-name">${layer.name}</div>
+      <div class="detail-tagline">${layer.tagline}</div>
+    </div>
+
+    <div>
+      <div class="section-label">Roles in this layer</div>
+      <div class="roles-wrap">
+        ${layer.roles.map(r => `<span class="role-chip">${r}</span>`).join('')}
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Key skills</div>
+      <div class="skills-list">
+        ${layer.skills.map(sk => `
+          <div class="skill-item">
+            <span class="skill-diamond">◆</span>
+            <div>
+              <div class="skill-name">${sk.name}</div>
+              <div class="skill-note">${sk.note}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="insight-block">
+      <div class="detail-eyebrow" style="margin-bottom:6px;">Market reality</div>
+      <div class="insight-text">${layer.insight}</div>
+    </div>
+
+    <div class="verdict-block">
+      <div class="detail-eyebrow" style="margin-bottom:4px;">For your profile</div>
+      <div class="verdict-text">${layer.verdict}</div>
+    </div>
+
+    <div>
+      <div class="section-label">Future outlook</div>
+      <div class="future-note">${layer.futureNote}</div>
+      <div class="detail-metrics">
+        ${metrics.map(m => `
+          <div class="detail-metric">
+            <div class="detail-metric-label">${m.label}</div>
+            ${makeBars(m.val)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ── Render ────────────────────────────────────────────────────────────
+
+let activeId = 'L2';
+
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  const reversed = [...LAYERS].reverse();
+  const topColors = ["#f43f5e","#f59e0b","#a855f7","#3b82f6","#22c55e"];
+  const botColors  = ["#22c55e","#3b82f6","#a855f7","#f59e0b","#f43f5e"];
+
+  el.innerHTML = `
+    <div class="stack-hint">
+      <div class="stack-hint-bars">
+        ${topColors.map(c => `<div class="stack-hint-bar" style="background:${c}"></div>`).join('')}
+      </div>
+      <span class="stack-hint-text">L5 (research) ↑ highest specialisation, fewest jobs</span>
+    </div>
+
+    ${reversed.map(layer => `
+      <div class="layer-card${layer.id === activeId ? ' active' : ''}"
+           style="${cssVars(layer)}"
+           data-id="${layer.id}"
+           onclick="setActive('${layer.id}')">
+        <div class="card-inner">
+          <div class="card-num">${layer.num}</div>
+          <div class="card-body">
+            <div class="card-name">${layer.name}</div>
+            <div class="card-tagline">${layer.tagline}</div>
+            <div class="card-metrics">${metricRows(layer)}</div>
+            <span class="card-pay">${layer.payRange}</span>
+          </div>
+        </div>
+      </div>
+    `).join('')}
+
+    <div class="stack-hint" style="margin-top:2px;">
+      <div class="stack-hint-bars">
+        ${botColors.map(c => `<div class="stack-hint-bar" style="background:${c}"></div>`).join('')}
+      </div>
+      <span class="stack-hint-text">L1 (application) ↓ most jobs, fastest to hire</span>
+    </div>
+  `;
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detail-panel');
+  const layer = LAYERS.find(l => l.id === activeId);
+  panel.setAttribute('style', cssVars(layer));
+  panel.innerHTML = detailContent(layer);
+}
+
+function renderMobile() {
+  const el = document.getElementById('mobile-accordion');
+  const reversed = [...LAYERS].reverse();
+  el.innerHTML = reversed.map(layer => `
+    <div class="accordion-card${layer.id === activeId ? ' active' : ''}"
+         style="${cssVars(layer)}"
+         id="acc-${layer.id}">
+      <div class="accordion-header" onclick="toggleAccordion('${layer.id}')">
+        <div class="card-inner" style="padding-right:26px;">
+          <div class="card-num">${layer.num}</div>
+          <div class="card-body">
+            <div class="card-name">${layer.name}</div>
+            <div class="card-tagline">${layer.tagline}</div>
+            <div class="card-metrics">${metricRows(layer)}</div>
+            <span class="card-pay">${layer.payRange}</span>
+          </div>
+        </div>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">
+        <div class="accordion-detail">
+          ${detailContent(layer)}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setActive(id) {
+  activeId = id;
+  document.querySelectorAll('.layer-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.id === id);
+  });
+  renderDetail();
+}
+
+function toggleAccordion(id) {
+  activeId = activeId === id ? null : id;
+  document.querySelectorAll('.accordion-card').forEach(card => {
+    card.classList.toggle('active', card.id === 'acc-' + activeId);
+  });
+}
+
+// Init
+renderSidebar();
+renderDetail();
+renderMobile();
+</script>
+</body>
+</html>
