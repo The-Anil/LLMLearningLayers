@@ -203,7 +203,7 @@
     .bar-group { display: flex; gap: 3px; }
 
     .bar-seg {
-      width: 16px; height: 4px; border-radius: 2px;
+      width: 18px; height: 5px; border-radius: 2px;
       background: rgba(255,255,255,0.08);
       transition: background 0.3s;
     }
@@ -225,12 +225,12 @@
 
     .detail-panel {
       border-radius: 14px;
-      padding: 22px 24px;
+      padding: 16px 20px;
       height: 100%;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 14px;
       border: 1px solid var(--lc-border);
       background: var(--lc-bg);
       transition: border-color 0.25s, background 0.25s;
@@ -242,7 +242,7 @@
 
     .detail-eyebrow {
       font-family: var(--font-mono);
-      font-size: 10px; font-weight: 700;
+      font-size: 11px; font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--lc-color);
@@ -258,45 +258,52 @@
     }
 
     .detail-tagline {
-      font-size: 12px;
+      font-size: 14px;
       color: rgba(255,255,255,0.38);
       line-height: 1.55;
     }
 
     .section-label {
-      font-size: 10px;
+      font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: var(--text-muted);
       margin-bottom: 8px;
+      font-weight: 600;
     }
 
     .roles-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
 
     .role-chip {
-      font-size: 11px; padding: 3px 11px; border-radius: 999px;
+      font-size: 13px; padding: 4px 12px; border-radius: 999px;
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.1);
       color: #cbd5e1;
     }
 
-    .skills-list { display: flex; flex-direction: column; gap: 6px; }
+    .skills-list { column-count: 2; column-gap: 10px; }
 
     .skill-item {
-      display: flex; align-items: flex-start; gap: 9px;
-      padding: 8px 12px; border-radius: 9px;
+      display: flex; align-items: baseline; gap: 7px;
+      padding: 8px 11px; border-radius: 9px;
       background: rgba(0,0,0,0.22);
       border: 1px solid rgba(255,255,255,0.06);
       transition: border-color 0.2s;
+      break-inside: avoid;
+      margin-bottom: 8px;
     }
 
     .skill-item:hover { border-color: var(--lc-border-hover); }
 
-    .skill-diamond { color: var(--lc-color); font-size: 9px; margin-top: 3px; flex-shrink: 0; }
+    .skill-diamond { color: var(--lc-color); font-size: 9px; flex-shrink: 0; margin-top: 1px; }
 
-    .skill-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+    .skill-text { flex: 1; min-width: 0; }
 
-    .skill-note { font-size: 11px; color: rgba(255,255,255,0.36); margin-top: 1px; line-height: 1.4; }
+    .skill-name { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+
+    .skill-sep { font-size: 12px; color: rgba(255,255,255,0.2); margin: 0 3px; }
+
+    .skill-note { font-size: 12px; color: rgba(255,255,255,0.38); }
 
     .insight-block {
       padding: 14px 16px; border-radius: 10px;
@@ -304,7 +311,7 @@
       border-left: 3px solid var(--lc-color);
     }
 
-    .insight-text { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.78; }
+    .insight-text { font-size: 15px; color: rgba(255,255,255,0.55); line-height: 1.7; }
 
     .verdict-block {
       padding: 12px 16px; border-radius: 10px;
@@ -312,16 +319,16 @@
       border: 1px solid var(--lc-border);
     }
 
-    .verdict-text { font-size: 12px; font-weight: 500; color: var(--lc-color); line-height: 1.65; }
+    .verdict-text { font-size: 15px; font-weight: 500; color: var(--lc-color); line-height: 1.65; }
 
     .future-note {
-      font-size: 12px; color: rgba(255,255,255,0.42); line-height: 1.5;
+      font-size: 13px; color: rgba(255,255,255,0.42); line-height: 1.5;
       font-style: italic; margin-bottom: 10px;
     }
 
     .detail-metrics { display: flex; gap: 18px; flex-wrap: wrap; }
 
-    .detail-metric-label { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+    .detail-metric-label { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 500; }
 
     /* ── MOBILE ACCORDION ───────────────────────────── */
     .mobile-accordion { display: none; }
@@ -387,6 +394,7 @@
       .header-hint { display: none; }
       .header-title { font-size: 15px; }
       .detail-name { font-size: 18px; }
+      .skills-list { column-count: 1; }
     }
 
     @media (max-width: 480px) {
@@ -610,9 +618,8 @@ function detailContent(layer) {
         ${layer.skills.map(sk => `
           <div class="skill-item">
             <span class="skill-diamond">◆</span>
-            <div>
-              <div class="skill-name">${sk.name}</div>
-              <div class="skill-note">${sk.note}</div>
+            <div class="skill-text">
+              <span class="skill-name">${sk.name}</span><span class="skill-sep">·</span><span class="skill-note">${sk.note}</span>
             </div>
           </div>
         `).join('')}
